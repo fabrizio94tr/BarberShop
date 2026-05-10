@@ -20,6 +20,18 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  let userRole = 'customer'
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    if (profile) {
+      userRole = profile.role
+    }
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center p-6 sm:p-24 bg-white dark:bg-black">
       <div className="z-10 max-w-5xl w-full flex flex-col gap-12">
@@ -32,6 +44,11 @@ export default async function Home() {
             {user ? (
               <>
                 <span className="text-sm text-gray-500 hidden sm:block">{user.email}</span>
+                {(userRole === 'admin' || userRole === 'barber') && (
+                  <Link href="/dashboard">
+                    <Button variant="outline" size="sm">Dashboard</Button>
+                  </Link>
+                )}
                 <form action={logout}>
                   <Button variant="ghost" size="sm">Logout</Button>
                 </form>
