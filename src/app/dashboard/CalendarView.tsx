@@ -5,6 +5,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isTod
 import { it } from 'date-fns/locale'
 import { Clock, User, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal'
 
 // Tipo per gli appuntamenti (esteso per supportare walk-in)
 export type Appointment = {
@@ -22,6 +23,7 @@ export type Appointment = {
 export default function CalendarView({ initialAppointments }: { initialAppointments: Appointment[] }) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(new Date())
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   // Calendario logic
   const monthStart = startOfMonth(currentDate)
@@ -121,7 +123,7 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
             <h3 className="text-xl font-bold">Appuntamenti</h3>
             <p className="text-sm text-gray-500 capitalize">{format(selectedDate, 'EEEE d MMMM', { locale: it })}</p>
           </div>
-          <Button size="sm" className="gap-2">
+          <Button size="sm" className="gap-2" onClick={() => setIsModalOpen(true)}>
             <Plus className="h-4 w-4" />
             Nuovo
           </Button>
@@ -166,6 +168,12 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
           )}
         </div>
       </div>
+
+      <NewAppointmentModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        selectedDate={selectedDate} 
+      />
     </div>
   )
 }
