@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, use } from 'react'
 import { login, signup } from './actions'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -9,8 +9,9 @@ import { Scissors, ArrowRight } from 'lucide-react'
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: { message: string }
+  searchParams: Promise<{ message: string }>
 }) {
+  const { message } = use(searchParams)
   const [isLogin, setIsLogin] = useState(true)
 
   return (
@@ -68,9 +69,9 @@ export default function LoginPage({
             />
           </div>
 
-          {searchParams?.message && (
+          {message && (
             <p className="text-sm font-medium text-red-500 text-center">
-              {searchParams.message}
+              {message}
             </p>
           )}
 
