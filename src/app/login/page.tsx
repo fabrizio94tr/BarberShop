@@ -33,17 +33,31 @@ export default function LoginPage({
 
         <form className="space-y-4">
           {!isLogin && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="full_name">
-                Nome Completo
-              </label>
-              <Input
-                id="full_name"
-                name="full_name"
-                placeholder="Mario Rossi"
-                required
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="full_name">
+                  Nome Completo
+                </label>
+                <Input
+                  id="full_name"
+                  name="full_name"
+                  placeholder="Mario Rossi"
+                  required={!isLogin}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="phone">
+                  Numero di Telefono
+                </label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  placeholder="333 1234567"
+                  required={!isLogin}
+                />
+              </div>
+            </>
           )}
           <div className="space-y-2">
             <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="email">

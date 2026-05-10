@@ -21,8 +21,8 @@ create policy "Users can update own profile." on profiles for update using (auth
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, email, full_name)
-  values (new.id, new.email, new.raw_user_meta_data->>'full_name');
+  insert into public.profiles (id, email, full_name, phone)
+  values (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'phone');
   return new;
 end;
 $$ language plpgsql security definer;
@@ -77,7 +77,9 @@ create policy "Barbers are viewable by everyone." on barbers for select using (t
 -- 5. Appointments Table
 create table public.appointments (
   id uuid default uuid_generate_v4() primary key,
-  customer_id uuid references public.profiles(id) on delete cascade not null,
+  customer_id uuid references public.profiles(id) on delete cascade, -- Nullable per i walk-in (prenotazioni manuali)
+  guest_name text, -- Nome cliente per prenotazioni manuali
+  guest_phone text, -- Telefono cliente per prenotazioni manuali
   location_id uuid references public.locations(id) on delete cascade not null,
   barber_id uuid references public.barbers(id) on delete cascade not null,
   service_id uuid references public.services(id) on delete cascade not null,
