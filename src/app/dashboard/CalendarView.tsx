@@ -46,7 +46,7 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       {/* Colonna Calendario */}
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold capitalize">
             {format(currentDate, 'MMMM yyyy', { locale: it })}
@@ -64,66 +64,68 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">
-          {/* Giorni della settimana */}
-          <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
-            {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
-              <div key={day} className="py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
-                {day}
-              </div>
-            ))}
-          </div>
-          
-          {/* Griglia Giorni */}
-          <div className="grid grid-cols-7">
-            {/* Spazi vuoti per allineare il primo giorno del mese (Lunedì = 1, Domenica = 0/7) */}
-            {Array.from({ length: (monthStart.getDay() + 6) % 7 }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[100px] border-b border-r border-gray-100 dark:border-gray-800/50 p-2 bg-gray-50/50 dark:bg-[#0a0a0a]" />
-            ))}
-            
-            {daysInMonth.map((day, i) => {
-              const dayAppointments = initialAppointments.filter(apt => isSameDay(apt.date, day))
-              const isSelected = isSameDay(day, selectedDate)
-              const isCurrentDay = isToday(day)
-
-              return (
-                <div 
-                  key={day.toISOString()} 
-                  onClick={() => setSelectedDate(day)}
-                  className={`min-h-[100px] border-b border-r border-gray-100 dark:border-gray-800/50 p-2 cursor-pointer transition-colors relative
-                    ${isSelected ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-900'}
-                  `}
-                >
-                  <div className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full mb-1
-                    ${isCurrentDay ? 'bg-black text-white dark:bg-white dark:text-black' : ''}
-                    ${isSelected && !isCurrentDay ? 'ring-2 ring-black dark:ring-white' : ''}
-                  `}>
-                    {format(day, 'd')}
-                  </div>
-                  
-                  {/* Indicatori Appuntamenti */}
-                  <div className="flex flex-col gap-1 mt-2">
-                    {dayAppointments.slice(0, 2).map(apt => (
-                      <div key={apt.id} className="text-[10px] truncate bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5">
-                        <span className="font-bold">{apt.time}</span> {apt.customer.split(' ')[0]}
-                      </div>
-                    ))}
-                    {dayAppointments.length > 2 && (
-                      <div className="text-[10px] text-gray-500 font-medium pl-1">
-                        +{dayAppointments.length - 2} altri
-                      </div>
-                    )}
-                  </div>
+        <div className="overflow-x-auto bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm">
+          <div className="min-w-[700px]">
+            {/* Giorni della settimana */}
+            <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+              {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
+                <div key={day} className="py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  {day}
                 </div>
-              )
-            })}
+              ))}
+            </div>
+            
+            {/* Griglia Giorni */}
+            <div className="grid grid-cols-7">
+              {/* Spazi vuoti per allineare il primo giorno del mese (Lunedì = 1, Domenica = 0/7) */}
+              {Array.from({ length: (monthStart.getDay() + 6) % 7 }).map((_, i) => (
+                <div key={`empty-${i}`} className="min-h-[100px] border-b border-r border-gray-100 dark:border-gray-800/50 p-2 bg-gray-50/50 dark:bg-[#0a0a0a]" />
+              ))}
+              
+              {daysInMonth.map((day, i) => {
+                const dayAppointments = initialAppointments.filter(apt => isSameDay(apt.date, day))
+                const isSelected = isSameDay(day, selectedDate)
+                const isCurrentDay = isToday(day)
+
+                return (
+                  <div 
+                    key={day.toISOString()} 
+                    onClick={() => setSelectedDate(day)}
+                    className={`min-h-[100px] border-b border-r border-gray-100 dark:border-gray-800/50 p-2 cursor-pointer transition-colors relative
+                      ${isSelected ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-900'}
+                    `}
+                  >
+                    <div className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full mb-1
+                      ${isCurrentDay ? 'bg-black text-white dark:bg-white dark:text-black' : ''}
+                      ${isSelected && !isCurrentDay ? 'ring-2 ring-black dark:ring-white' : ''}
+                    `}>
+                      {format(day, 'd')}
+                    </div>
+                    
+                    {/* Indicatori Appuntamenti */}
+                    <div className="flex flex-col gap-1 mt-2">
+                      {dayAppointments.slice(0, 2).map(apt => (
+                        <div key={apt.id} className="text-[10px] truncate bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5">
+                          <span className="font-bold">{apt.time}</span> {apt.customer.split(' ')[0]}
+                        </div>
+                      ))}
+                      {dayAppointments.length > 2 && (
+                        <div className="text-[10px] text-gray-500 font-medium pl-1">
+                          +{dayAppointments.length - 2} altri
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Colonna Dettagli Giorno */}
-      <div className="lg:w-96 flex flex-col">
-        <div className="flex items-center justify-between mb-6">
+      <div className="lg:w-96 flex flex-col min-h-[500px]">
+        <div className="flex items-center justify-between mb-6 mt-8 lg:mt-0">
           <div>
             <h3 className="text-xl font-bold">Appuntamenti</h3>
             <p className="text-sm text-gray-500 capitalize">{format(selectedDate, 'EEEE d MMMM', { locale: it })}</p>
@@ -136,7 +138,7 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
 
         <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 flex-1 shadow-sm">
           {selectedDayAppointments.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center text-gray-500 py-12">
+            <div className="h-full flex flex-col items-center justify-center text-center text-gray-500 py-20">
               <CalendarIcon className="h-12 w-12 mb-4 text-gray-300 dark:text-gray-700" />
               <p>Nessun appuntamento per questa data.</p>
             </div>
