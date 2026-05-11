@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { X } from 'lucide-react'
+import { format } from 'date-fns'
 
 // Usiamo gli stessi dati mock per coerenza
 const SERVICES = [
@@ -111,7 +112,7 @@ export default function NewAppointmentModal({ isOpen, onClose, selectedDate }: N
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Data</label>
-                <Input required type="date" defaultValue={selectedDate.toISOString().split('T')[0]} />
+                <Input required type="date" defaultValue={format(selectedDate, 'yyyy-MM-dd')} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Orario</label>
