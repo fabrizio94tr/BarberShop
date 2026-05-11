@@ -125,6 +125,15 @@ export default function NewAppointmentModal({ isOpen, onClose, selectedDate }: N
               </div>
             </div>
 
+            {/* Note */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Note (Es. non si è presentato, allergie, ecc.)</label>
+              <textarea 
+                className="flex min-h-[80px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black dark:border-gray-800 dark:bg-black dark:focus-visible:ring-white"
+                placeholder="Aggiungi dettagli sull'appuntamento..."
+              />
+            </div>
+
           </form>
         </div>
 

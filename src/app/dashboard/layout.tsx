@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { logout } from '@/app/login/actions'
 import { Button } from '@/components/ui/Button'
-import { Scissors, Calendar, Users, Settings, LogOut } from 'lucide-react'
+import { Scissors, Calendar, Users, Settings, LogOut, TrendingUp } from 'lucide-react'
 
 export default async function DashboardLayout({
   children,
@@ -49,10 +49,16 @@ export default async function DashboardLayout({
             Clienti
           </Link>
           {profile.role === 'admin' && (
-            <Link href="/dashboard/settings" className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900/50 rounded-lg text-sm text-gray-600 dark:text-gray-400">
-              <Settings className="h-4 w-4" />
-              Sedi & Staff
-            </Link>
+            <>
+              <Link href="/dashboard/stats" className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900/50 rounded-lg text-sm text-gray-600 dark:text-gray-400">
+                <TrendingUp className="h-4 w-4" />
+                Statistiche
+              </Link>
+              <Link href="/dashboard/settings" className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900/50 rounded-lg text-sm text-gray-600 dark:text-gray-400">
+                <Settings className="h-4 w-4" />
+                Sedi & Staff
+              </Link>
+            </>
           )}
         </nav>
 

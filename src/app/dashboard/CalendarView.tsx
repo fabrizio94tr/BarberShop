@@ -16,6 +16,7 @@ export type Appointment = {
   service: string
   customer: string
   phone?: string
+  notes?: string
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   isWalkIn?: boolean
 }
@@ -168,6 +169,21 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
                     {apt.phone && (
                       <div className="ml-6 text-xs">{apt.phone}</div>
                     )}
+                    {apt.notes && (
+                      <div className="ml-6 mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border-l-2 border-yellow-400 text-xs italic text-gray-700 dark:text-gray-300 rounded">
+                        "{apt.notes}"
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Azioni Appuntamento */}
+                  <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-50 dark:border-gray-800/50">
+                    <Button variant="ghost" size="sm" className="h-8 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black dark:hover:text-white" onClick={() => setIsModalOpen(true)}>
+                      Modifica
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 text-xs font-bold uppercase tracking-wider text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => confirm("Sei sicuro di voler eliminare questo appuntamento?")}>
+                      Elimina
+                    </Button>
                   </div>
                 </div>
               ))}
