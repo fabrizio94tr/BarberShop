@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { Clock, User, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { Clock, User, ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal'
 
