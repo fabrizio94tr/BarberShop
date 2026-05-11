@@ -37,6 +37,11 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
 
   const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1))
   const handleNextMonth = () => setCurrentDate(addMonths(currentDate, 1))
+  const handleGoToToday = () => {
+    const today = new Date()
+    setCurrentDate(today)
+    setSelectedDate(today)
+  }
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
@@ -50,7 +55,7 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
             <Button variant="outline" size="sm" onClick={handlePrevMonth} className="px-2">
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
+            <Button variant="outline" size="sm" onClick={handleGoToToday}>
               Oggi
             </Button>
             <Button variant="outline" size="sm" onClick={handleNextMonth} className="px-2">

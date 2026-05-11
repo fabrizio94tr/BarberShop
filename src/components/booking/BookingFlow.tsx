@@ -29,6 +29,7 @@ export default function BookingFlow({ locationId }: { locationId: string }) {
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'onsite'>('online')
 
   const handleNext = () => setStep((s) => Math.min(s + 1, 4))
   const handleBack = () => setStep((s) => Math.max(s - 1, 1))
@@ -43,10 +44,56 @@ export default function BookingFlow({ locationId }: { locationId: string }) {
     return true
   }
 
-  const handleConfirm = () => {
-    // Qui andrà la logica di integrazione con Stripe e inserimento nel DB
-    alert("Prenotazione confermata (Mockup)!")
-    router.push('/')
+  const handleConfirm = async () => {
+    setStep(5) // Uno stato di loading
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          serviceId: selectedService,
+          locationId: locationId,
+          barberId: selectedBarber,
+          appointmentDate: format(selectedDate, 'yyyy-MM-dd'),
+          appointmentTime: selectedTime,
+        }),
+      });
+
+      const { url, error } = await response.json();
+
+      if (error) {
+        alert("Errore: " + error);
+        setStep(4);
+        return;
+      }
+
+      // Reindirizza l'utente alla pagina di pagamento di Stripe
+      window.location.href = url;
+    } catch (err) {
+      console.error(err);
+      alert("Si è verificato un errore durante la creazione del pagamento.");
+      setStep(4);
+    }
+  }
+
+  const handleConfirmOnSite = async () => {
+    setStep(5) // Caricamento
+    try {
+      // Qui faremo una chiamata API per salvare l'appuntamento direttamente nel DB
+      // senza passare da Stripe
+      console.log("Salvataggio appuntamento in sede...");
+      
+      // Simulazione successo
+      setTimeout(() => {
+        router.push('/book/success')
+      }, 1000)
+    } catch (err) {
+      console.error(err);
+      alert("Errore nel salvataggio della prenotazione.");
+      setStep(4);
+    }
   }
 
   return (
@@ -219,31 +266,68 @@ export default function BookingFlow({ locationId }: { locationId: string }) {
                 <span className="text-2xl font-bold">€{SERVICES.find(s => s.id === selectedService)?.price}</span>
               </div>
             </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-bold uppercase tracking-wider text-gray-500">Metodo di Pagamento</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setPaymentMethod('online')}
+                  className={`p-4 rounded-xl border text-left transition-all ${
+                    paymentMethod === 'online' ? 'border-black bg-gray-50 dark:border-white dark:bg-gray-900' : 'border-gray-200'
+                  }`}
+                >
+                  <p className="font-bold">Online</p>
+                  <p className="text-xs text-gray-500">Carta, Apple/Google Pay</p>
+                </button>
+                <button
+                  onClick={() => setPaymentMethod('onsite')}
+                  className={`p-4 rounded-xl border text-left transition-all ${
+                    paymentMethod === 'onsite' ? 'border-black bg-gray-50 dark:border-white dark:bg-gray-900' : 'border-gray-200'
+                  }`}
+                >
+                  <p className="font-bold">In Sede</p>
+                  <p className="text-xs text-gray-500">Paga dopo il servizio</p>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Loading */}
+        {step === 5 && (
+          <div className="py-20 text-center space-y-4">
+            <div className="w-12 h-12 border-4 border-black dark:border-white border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-gray-500 font-medium">Stiamo preparando il pagamento sicuro...</p>
           </div>
         )}
 
         {/* Navigation Buttons */}
-        <div className="mt-8 flex justify-between pt-6 border-t border-gray-100 dark:border-gray-800">
-          {step > 1 ? (
-            <Button variant="outline" onClick={handleBack}>
-              <ArrowLeft className="h-4 w-4 mr-2" /> Indietro
-            </Button>
-          ) : (
-            <Button variant="ghost" onClick={() => router.push('/')}>
-              Annulla
-            </Button>
-          )}
-          
-          {step < 4 ? (
-            <Button onClick={handleNext} disabled={!canProceed()}>
-              Avanti <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          ) : (
-            <Button onClick={handleConfirm} className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-600 dark:hover:bg-green-700">
-              Conferma e Paga
-            </Button>
-          )}
-        </div>
+        {step <= 4 && (
+          <div className="mt-8 flex justify-between pt-6 border-t border-gray-100 dark:border-gray-800">
+            {step > 1 ? (
+              <Button variant="outline" onClick={handleBack}>
+                <ArrowLeft className="h-4 w-4 mr-2" /> Indietro
+              </Button>
+            ) : (
+              <Button variant="ghost" onClick={() => router.push('/')}>
+                Annulla
+              </Button>
+            )}
+            
+            {step < 4 ? (
+              <Button onClick={handleNext} disabled={!canProceed()}>
+                Avanti <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            ) : (
+              <Button 
+                onClick={paymentMethod === 'online' ? handleConfirm : handleConfirmOnSite} 
+                className={paymentMethod === 'online' ? "bg-green-600 hover:bg-green-700 text-white" : "bg-black text-white dark:bg-white dark:text-black"}
+              >
+                {paymentMethod === 'online' ? 'Conferma e Paga' : 'Conferma Prenotazione'}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

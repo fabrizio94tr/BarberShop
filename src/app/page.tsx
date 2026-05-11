@@ -52,7 +52,10 @@ export default async function Home() {
           <div className="flex items-center gap-4">
             {user ? (
               <>
-                <span className="text-sm text-gray-300 hidden sm:block">{user.email}</span>
+                <Link href="/appointments" className="text-sm font-medium text-gray-300 hover:text-white transition-colors hidden sm:block mr-2">
+                  I miei Appuntamenti
+                </Link>
+                <span className="text-sm text-gray-500 hidden md:block">{user.email}</span>
                 {(userRole === 'admin' || userRole === 'barber') && (
                   <Link href="/dashboard">
                     <Button variant="outline" size="sm" className="bg-white/10 text-white border-white/20 hover:bg-white hover:text-black transition-all">Dashboard</Button>
