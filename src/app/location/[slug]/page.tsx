@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
-import { MapPin, Clock, Scissors, User, ArrowRight, ChevronLeft, Star, Phone, Instagram } from 'lucide-react'
+import { MapPin, Clock, Scissors, User, ArrowRight, ChevronLeft, Star, Phone, Camera } from 'lucide-react'
 
 const DUMMY_LOCATIONS = [
   { id: '1', slug: 'prati', name: 'Barber & Co. - Prati', address: 'Via Cola di Rienzo, 12', image: '/shop_1.png', phone: '+39 06 123456', hours: '09:00 - 20:00' },
@@ -156,7 +156,7 @@ export default async function LocationPage({
                     <span>{location.phone}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <Instagram className="w-4 h-4 text-gray-400" />
+                    <Camera className="w-4 h-4 text-gray-400" />
                     <span className="hover:underline cursor-pointer">@barber_co_roma</span>
                   </div>
                 </div>
