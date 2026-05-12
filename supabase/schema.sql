@@ -88,6 +88,7 @@ create table public.appointments (
   status text check (status in ('pending', 'confirmed', 'cancelled', 'completed')) default 'pending',
   stripe_payment_intent text,
   total_amount numeric(10, 2) not null,
+  notes text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
