@@ -27,11 +27,15 @@ export async function POST(request: Request) {
     // 2. Recupera l'account Stripe della sede
     const { data: location } = await supabase
       .from('locations')
-      .select('stripe_account_id')
+      .select('stripe_account_id, slug')
       .eq('id', locationId)
       .single();
 
-    const destinationAccount = location?.stripe_account_id;
+    if (!location) {
+      return NextResponse.json({ error: 'Sede non trovata' }, { status: 404 });
+    }
+
+    const destinationAccount = location.stripe_account_id;
 
     // 3. Crea la Checkout Session
     const session = await stripe.checkout.sessions.create({
