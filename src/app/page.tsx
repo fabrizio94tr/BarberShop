@@ -4,22 +4,22 @@ import { Button } from '@/components/ui/Button'
 import { logout } from '@/app/login/actions'
 import { Scissors, MapPin, ArrowRight } from 'lucide-react'
 
-const DUMMY_LOCATIONS = [
-  { id: '1', slug: 'prati', name: 'Barber & Co. - Prati', address: 'Via Cola di Rienzo, 12', price: 'da €25', image: '/shop_1.png' },
-  { id: '2', slug: 'trastevere', name: 'Barber & Co. - Trastevere', address: 'Piazza Trilussa, 5', price: 'da €30', image: '/shop_2.png' },
-  { id: '3', slug: 'parioli', name: 'Barber & Co. - Parioli', address: 'Viale dei Parioli, 44', price: 'da €35', image: '/shop_3.png' },
-  { id: '4', slug: 'eur', name: 'Barber & Co. - EUR', address: 'Viale Europa, 110', price: 'da €25', image: '/shop_1.png' },
-  { id: '5', slug: 'centro', name: 'Barber & Co. - Centro Storico', address: 'Via del Corso, 200', price: 'da €40', image: '/shop_2.png' },
-  { id: '6', slug: 'testaccio', name: 'Barber & Co. - Testaccio', address: 'Via Galvani, 3', price: 'da €20', image: '/shop_3.png' },
+// Dati di fallback nel caso il database sia vuoto inizialmente
+const FALLBACK_LOCATIONS = [
+  { id: '1', slug: 'prati', name: 'Barber & Co. - Prati', address: 'Via Cola di Rienzo, 12', price: 'da €25', image_url: '/shop_1.png' },
+  { id: '2', slug: 'trastevere', name: 'Barber & Co. - Trastevere', address: 'Piazza Trilussa, 5', price: 'da €30', image_url: '/shop_2.png' },
+  { id: '3', slug: 'parioli', name: 'Barber & Co. - Parioli', address: 'Viale dei Parioli, 44', price: 'da €35', image_url: '/shop_3.png' },
+  { id: '4', slug: 'eur', name: 'Barber & Co. - EUR', address: 'Viale Europa, 110', price: 'da €25', image_url: '/shop_1.png' },
+  { id: '5', slug: 'centro', name: 'Barber & Co. - Centro Storico', address: 'Via del Corso, 200', price: 'da €40', image_url: '/shop_2.png' },
+  { id: '6', slug: 'testaccio', name: 'Barber & Co. - Testaccio', address: 'Via Galvani, 3', price: 'da €20', image_url: '/shop_3.png' },
 ]
 
 export default async function Home() {
   const supabase = await createClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  // Recupero Utente e Ruolo
+  const { data: { user } } = await supabase.auth.getUser()
+  
   let userRole = 'customer'
   if (user) {
     const { data: profile } = await supabase
@@ -27,10 +27,16 @@ export default async function Home() {
       .select('role')
       .eq('id', user.id)
       .single()
-    if (profile) {
-      userRole = profile.role
-    }
+    if (profile) userRole = profile.role
   }
+
+  // Recupero Sedi Reali da Supabase
+  const { data: dbLocations } = await supabase
+    .from('locations')
+    .select('*')
+    .eq('is_active', true)
+
+  const locations = dbLocations && dbLocations.length > 0 ? dbLocations : FALLBACK_LOCATIONS
 
   return (
     <main className="relative flex min-h-screen flex-col items-center p-6 sm:p-24 text-white">
@@ -84,14 +90,14 @@ export default async function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-16">
-            {DUMMY_LOCATIONS.map((loc) => (
+            {locations.map((loc) => (
               <div 
                 key={loc.id}
                 className="group relative overflow-hidden rounded-[2rem] transition-transform duration-500 hover:-translate-y-2 h-[380px] flex flex-col justify-end ring-1 ring-white/10 hover:ring-white/30"
               >
                 <div 
                   className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-1000 group-hover:scale-110"
-                  style={{ backgroundImage: `url(${loc.image})` }}
+                  style={{ backgroundImage: `url(${loc.image_url || '/shop_1.png'})` }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent z-10" />
                 
@@ -101,7 +107,7 @@ export default async function Home() {
                       <MapPin className="h-5 w-5" />
                     </div>
                     <span className="text-sm font-mono font-bold bg-white text-black px-4 py-1.5 rounded-full shadow-xl">
-                      {loc.price}
+                      {loc.price || 'da €25'}
                     </span>
                   </div>
                   
@@ -109,7 +115,7 @@ export default async function Home() {
                     <h3 className="text-3xl font-bold mb-2 text-white tracking-tight uppercase">{loc.name}</h3>
                     <p className="text-sm text-gray-300 mb-8 font-light">{loc.address}</p>
                     
-                    <Link href={`/location/${loc.slug}`}>
+                    <Link href={`/location/${loc.slug || loc.id}`}>
                       <Button className="w-full justify-between h-14 bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white hover:text-black transition-all group-hover:bg-white group-hover:text-black rounded-xl">
                         <span className="font-semibold text-base">Scopri la sede</span>
                         <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />

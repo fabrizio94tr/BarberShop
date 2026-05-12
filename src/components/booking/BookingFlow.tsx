@@ -1,40 +1,77 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Scissors, User, Calendar as CalendarIcon, Clock, ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { format, addDays, isSameDay } from 'date-fns'
 import { it } from 'date-fns/locale'
+import { createClient } from '@/utils/supabase/client'
 
-// Mock Data
-const SERVICES = [
-  { id: '1', name: 'Taglio Classico', duration: 30, price: 25, description: 'Taglio a forbice o macchinetta, shampoo incluso.' },
-  { id: '2', name: 'Taglio & Barba', duration: 45, price: 35, description: 'Servizio completo per capelli e barba con panno caldo.' },
-  { id: '3', name: 'Regolazione Barba', duration: 20, price: 15, description: 'Modellatura e definizione barba.' },
-]
+// Tipi per i dati
+type Service = {
+  id: string
+  name: string
+  duration_minutes: number
+  price: number
+  description: string
+}
 
-const BARBERS = [
-  { id: 'any', name: 'Chiunque sia libero', role: 'Prima disponibilità' },
-  { id: '1', name: 'Marco', role: 'Senior Barber' },
-  { id: '2', name: 'Davide', role: 'Barber' },
-]
+type Barber = {
+  id: string
+  name: string
+  role?: string
+  photo_url?: string
+}
 
 const TIME_SLOTS = ['09:00', '09:30', '10:00', '10:30', '11:00', '14:00', '14:30', '15:00', '16:00', '16:30']
 
 export default function BookingFlow({ locationId }: { locationId: string }) {
   const router = useRouter()
+  const supabase = createClient()
+  
   const [step, setStep] = useState(1)
+  const [services, setServices] = useState<Service[]>([])
+  const [barbers, setBarbers] = useState<Barber[]>([])
+  const [loading, setLoading] = useState(true)
+
   const [selectedService, setSelectedService] = useState<string | null>(null)
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'onsite'>('online')
 
+  // Fetch dei dati reali
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true)
+      
+      // 1. Fetch Servizi
+      const { data: sData } = await supabase
+        .from('services')
+        .select('*')
+        .eq('location_id', locationId)
+      
+      if (sData) setServices(sData)
+
+      // 2. Fetch Barbieri
+      const { data: bData } = await supabase
+        .from('barbers')
+        .select('*')
+        .eq('location_id', locationId)
+        .eq('is_active', true)
+      
+      if (bData) setBarbers(bData)
+      
+      setLoading(false)
+    }
+
+    fetchData()
+  }, [locationId, supabase])
+
   const handleNext = () => setStep((s) => Math.min(s + 1, 4))
   const handleBack = () => setStep((s) => Math.max(s - 1, 1))
 
-  // Genera i prossimi 14 giorni per la selezione rapida
   const availableDates = Array.from({ length: 14 }).map((_, i) => addDays(new Date(), i))
 
   const canProceed = () => {
@@ -45,13 +82,11 @@ export default function BookingFlow({ locationId }: { locationId: string }) {
   }
 
   const handleConfirm = async () => {
-    setStep(5) // Uno stato di loading
+    setStep(5) // Loading state
     try {
       const response = await fetch('/api/checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceId: selectedService,
           locationId: locationId,
@@ -62,38 +97,48 @@ export default function BookingFlow({ locationId }: { locationId: string }) {
       });
 
       const { url, error } = await response.json();
-
-      if (error) {
-        alert("Errore: " + error);
-        setStep(4);
-        return;
-      }
-
-      // Reindirizza l'utente alla pagina di pagamento di Stripe
+      if (error) throw new Error(error);
       window.location.href = url;
     } catch (err) {
       console.error(err);
-      alert("Si è verificato un errore durante la creazione del pagamento.");
+      alert("Errore nel pagamento: " + (err as Error).message);
       setStep(4);
     }
   }
 
   const handleConfirmOnSite = async () => {
-    setStep(5) // Caricamento
+    setStep(5)
     try {
-      // Qui faremo una chiamata API per salvare l'appuntamento direttamente nel DB
-      // senza passare da Stripe
-      console.log("Salvataggio appuntamento in sede...");
-      
-      // Simulazione successo
-      setTimeout(() => {
-        router.push('/book/success')
-      }, 1000)
+      // In una versione reale, qui chiameremmo un'API /api/book-onsite
+      // che salva l'appuntamento con status 'pending' o 'confirmed'
+      const response = await fetch('/api/book-onsite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serviceId: selectedService,
+          locationId: locationId,
+          barberId: selectedBarber,
+          appointmentDate: format(selectedDate, 'yyyy-MM-dd'),
+          appointmentTime: selectedTime,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Errore nel salvataggio");
+      router.push('/book/success')
     } catch (err) {
       console.error(err);
-      alert("Errore nel salvataggio della prenotazione.");
+      alert("Errore nel salvataggio.");
       setStep(4);
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black dark:border-white mb-4" />
+        <p>Caricamento servizi e staff...</p>
+      </div>
+    )
   }
 
   return (
@@ -105,14 +150,8 @@ export default function BookingFlow({ locationId }: { locationId: string }) {
           className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-black dark:bg-white -z-10 transition-all duration-300 rounded-full" 
           style={{ width: `${((step - 1) / 3) * 100}%` }}
         />
-        
         {[1, 2, 3, 4].map((s) => (
-          <div 
-            key={s} 
-            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors
-              ${step >= s ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-200 text-gray-500 dark:bg-gray-800'}
-            `}
-          >
+          <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${step >= s ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-200 text-gray-500 dark:bg-gray-800'}`}>
             {s}
           </div>
         ))}
@@ -125,19 +164,11 @@ export default function BookingFlow({ locationId }: { locationId: string }) {
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold flex items-center gap-2"><Scissors className="h-6 w-6" /> Scegli il Servizio</h2>
-              <p className="text-gray-500">Seleziona il trattamento desiderato.</p>
+              <p className="text-gray-500">I nostri trattamenti per questa sede.</p>
             </div>
             <div className="space-y-3">
-              {SERVICES.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setSelectedService(s.id)}
-                  className={`w-full text-left p-4 rounded-xl border transition-all ${
-                    selectedService === s.id 
-                      ? 'border-black bg-gray-50 dark:border-white dark:bg-gray-900' 
-                      : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'
-                  }`}
-                >
+              {services.map((s) => (
+                <button key={s.id} onClick={() => setSelectedService(s.id)} className={`w-full text-left p-4 rounded-xl border transition-all ${selectedService === s.id ? 'border-black bg-gray-50 dark:border-white dark:bg-gray-900' : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'}`}>
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-bold text-lg">{s.name}</h3>
@@ -145,7 +176,7 @@ export default function BookingFlow({ locationId }: { locationId: string }) {
                     </div>
                     <div className="text-right">
                       <span className="block font-bold">€{s.price}</span>
-                      <span className="text-xs text-gray-500">{s.duration} min</span>
+                      <span className="text-xs text-gray-500">{s.duration_minutes} min</span>
                     </div>
                   </div>
                 </button>
@@ -159,171 +190,124 @@ export default function BookingFlow({ locationId }: { locationId: string }) {
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold flex items-center gap-2"><User className="h-6 w-6" /> Scegli il Barbiere</h2>
-              <p className="text-gray-500">Hai una preferenza o vuoi la prima disponibilità?</p>
+              <p className="text-gray-500">Con chi vuoi fissare l'appuntamento?</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {BARBERS.map((b) => (
-                <button
-                  key={b.id}
-                  onClick={() => setSelectedBarber(b.id)}
-                  className={`p-4 rounded-xl border transition-all text-left flex flex-col items-center sm:items-start text-center sm:text-left ${
-                    selectedBarber === b.id 
-                      ? 'border-black bg-gray-50 dark:border-white dark:bg-gray-900' 
-                      : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'
-                  }`}
-                >
-                  <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-800 mb-3 flex items-center justify-center">
-                    <User className="h-6 w-6 text-gray-500" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button onClick={() => setSelectedBarber('any')} className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${selectedBarber === 'any' ? 'border-black bg-gray-50 dark:border-white dark:bg-gray-900' : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'}`}>
+                <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center font-bold">A</div>
+                <div>
+                  <h3 className="font-bold">Chiunque</h3>
+                  <p className="text-xs text-gray-500">Prima disponibilità</p>
+                </div>
+              </button>
+              {barbers.length > 0 ? barbers.map((b) => (
+                <button key={b.id} onClick={() => setSelectedBarber(b.id)} className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${selectedBarber === b.id ? 'border-black bg-gray-50 dark:border-white dark:bg-gray-900' : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'}`}>
+                  <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    {b.photo_url ? <img src={b.photo_url} alt={b.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-bold">{b.name[0]}</div>}
                   </div>
-                  <h3 className="font-bold">{b.name}</h3>
-                  <p className="text-xs text-gray-500">{b.role}</p>
+                  <div>
+                    <h3 className="font-bold">{b.name}</h3>
+                    <p className="text-xs text-gray-500">{b.role || 'Barber'}</p>
+                  </div>
+                </button>
+              )) : (
+                <>
+                  <button onClick={() => setSelectedBarber('b1')} className="flex items-center gap-4 p-4 rounded-xl border text-left border-gray-200">
+                    <img src="https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=100&h=100&fit=crop" className="w-12 h-12 rounded-full object-cover" />
+                    <div><h3 className="font-bold text-sm">Marco Rossi</h3><p className="text-[10px] text-gray-500">Senior Barber</p></div>
+                  </button>
+                  <button onClick={() => setSelectedBarber('b2')} className="flex items-center gap-4 p-4 rounded-xl border text-left border-gray-200">
+                    <img src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=100&h=100&fit=crop" className="w-12 h-12 rounded-full object-cover" />
+                    <div><h3 className="font-bold text-sm">Davide Bianchi</h3><p className="text-[10px] text-gray-500">Master Stylist</p></div>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Data & Ora */}
+        {step === 3 && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold flex items-center gap-2"><CalendarIcon className="h-6 w-6" /> Data e Ora</h2>
+              <p className="text-gray-500">Seleziona quando vuoi venire a trovarci.</p>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {availableDates.map((date) => (
+                <button key={date.toISOString()} onClick={() => setSelectedDate(date)} className={`flex-shrink-0 w-20 p-3 rounded-xl border flex flex-col items-center transition-all ${isSameDay(selectedDate, date) ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black' : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'}`}>
+                  <span className="text-[10px] uppercase font-bold opacity-60">{format(date, 'eee', { locale: it })}</span>
+                  <span className="text-lg font-bold">{format(date, 'd')}</span>
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {TIME_SLOTS.map((t) => (
+                <button key={t} onClick={() => setSelectedTime(t)} className={`p-3 rounded-xl border text-sm font-medium transition-all ${selectedTime === t ? 'border-black bg-gray-50 dark:border-white dark:bg-gray-900' : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'}`}>
+                  {t}
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Step 3: Data e Ora */}
-        {step === 3 && (
-          <div className="space-y-6">
+        {/* Step 4: Conferma & Pagamento */}
+        {step === 4 && (
+          <div className="space-y-8 text-center py-4">
+            <CheckCircle2 className="w-16 h-16 mx-auto text-green-500" />
             <div>
-              <h2 className="text-2xl font-bold flex items-center gap-2"><CalendarIcon className="h-6 w-6" /> Scegli Data e Ora</h2>
-              <p className="text-gray-500">Seleziona quando vuoi venire.</p>
+              <h2 className="text-2xl font-bold">Riepilogo Prenotazione</h2>
+              <p className="text-gray-500 mt-2">Controlla i dettagli prima di confermare.</p>
             </div>
             
-            <div>
-              <h3 className="font-medium mb-3">Data</h3>
-              <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide">
-                {availableDates.map((date) => {
-                  const isSelected = isSameDay(date, selectedDate)
-                  return (
-                    <button
-                      key={date.toISOString()}
-                      onClick={() => { setSelectedDate(date); setSelectedTime(null); }}
-                      className={`flex-shrink-0 w-16 h-20 rounded-xl border flex flex-col items-center justify-center transition-colors ${
-                        isSelected 
-                          ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black' 
-                          : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'
-                      }`}
-                    >
-                      <span className="text-xs uppercase">{format(date, 'eee', { locale: it })}</span>
-                      <span className="text-xl font-bold">{format(date, 'd')}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-medium mb-3 flex items-center gap-2"><Clock className="h-4 w-4" /> Orario</h3>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {TIME_SLOTS.map((time) => (
-                  <button
-                    key={time}
-                    onClick={() => setSelectedTime(time)}
-                    className={`py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      selectedTime === time
-                        ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black'
-                        : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'
-                    }`}
-                  >
-                    {time}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Riepilogo */}
-        {step === 4 && (
-          <div className="space-y-6">
-            <div className="text-center space-y-2">
-              <div className="w-16 h-16 bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="h-8 w-8" />
-              </div>
-              <h2 className="text-2xl font-bold">Quasi fatto!</h2>
-              <p className="text-gray-500">Controlla i dettagli e conferma la prenotazione.</p>
-            </div>
-
-            <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-6 space-y-4">
-              <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-800 pb-4">
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-6 rounded-2xl text-left space-y-4">
+              <div className="flex justify-between">
                 <span className="text-gray-500">Servizio</span>
-                <span className="font-bold">{SERVICES.find(s => s.id === selectedService)?.name}</span>
+                <span className="font-bold">{services.find(s => s.id === selectedService)?.name}</span>
               </div>
-              <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-800 pb-4">
-                <span className="text-gray-500">Barbiere</span>
-                <span className="font-bold">{BARBERS.find(b => b.id === selectedBarber)?.name}</span>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Data</span>
+                <span className="font-bold">{format(selectedDate, 'd MMMM yyyy', { locale: it })} alle {selectedTime}</span>
               </div>
-              <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-800 pb-4">
-                <span className="text-gray-500">Data e Ora</span>
-                <span className="font-bold capitalize text-right">
-                  {format(selectedDate, 'EEEE d MMMM', { locale: it })}<br/>alle {selectedTime}
-                </span>
-              </div>
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-lg">Totale</span>
-                <span className="text-2xl font-bold">€{SERVICES.find(s => s.id === selectedService)?.price}</span>
+              <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-4 mt-4">
+                <span className="text-xl font-bold">Totale</span>
+                <span className="text-xl font-bold">€{services.find(s => s.id === selectedService)?.price}</span>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-sm font-bold uppercase tracking-wider text-gray-500">Metodo di Pagamento</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setPaymentMethod('online')}
-                  className={`p-4 rounded-xl border text-left transition-all ${
-                    paymentMethod === 'online' ? 'border-black bg-gray-50 dark:border-white dark:bg-gray-900' : 'border-gray-200'
-                  }`}
-                >
-                  <p className="font-bold">Online</p>
-                  <p className="text-xs text-gray-500">Carta, Apple/Google Pay</p>
-                </button>
-                <button
-                  onClick={() => setPaymentMethod('onsite')}
-                  className={`p-4 rounded-xl border text-left transition-all ${
-                    paymentMethod === 'onsite' ? 'border-black bg-gray-50 dark:border-white dark:bg-gray-900' : 'border-gray-200'
-                  }`}
-                >
-                  <p className="font-bold">In Sede</p>
-                  <p className="text-xs text-gray-500">Paga dopo il servizio</p>
-                </button>
+            <div className="space-y-4">
+              <div className="flex gap-4 p-1 bg-gray-100 dark:bg-gray-900 rounded-xl">
+                <button onClick={() => setPaymentMethod('online')} className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${paymentMethod === 'online' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}>Pagamento Online</button>
+                <button onClick={() => setPaymentMethod('onsite')} className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${paymentMethod === 'onsite' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}>Paga in Sede</button>
               </div>
+              <p className="text-xs text-gray-500">{paymentMethod === 'online' ? 'Pagherai in anticipo tramite carta di credito/Stripe.' : 'La tua prenotazione è confermata, pagherai direttamente al barbiere.'}</p>
             </div>
           </div>
         )}
 
-        {/* Step 5: Loading */}
+        {/* Step 5: Loading State */}
         {step === 5 && (
-          <div className="py-20 text-center space-y-4">
-            <div className="w-12 h-12 border-4 border-black dark:border-white border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-gray-500 font-medium">Stiamo preparando il pagamento sicuro...</p>
+          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black dark:border-white mb-4" />
+            <p>Stiamo elaborando la tua prenotazione...</p>
           </div>
         )}
 
-        {/* Navigation Buttons */}
-        {step <= 4 && (
-          <div className="mt-8 flex justify-between pt-6 border-t border-gray-100 dark:border-gray-800">
-            {step > 1 ? (
-              <Button variant="outline" onClick={handleBack}>
+        {/* Footer Buttons */}
+        {step < 5 && (
+          <div className="mt-10 flex gap-4">
+            {step > 1 && (
+              <Button variant="outline" className="flex-1 rounded-xl h-14" onClick={handleBack}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Indietro
               </Button>
-            ) : (
-              <Button variant="ghost" onClick={() => router.push('/')}>
-                Annulla
-              </Button>
             )}
-            
             {step < 4 ? (
-              <Button onClick={handleNext} disabled={!canProceed()}>
-                Avanti <ArrowRight className="h-4 w-4 ml-2" />
+              <Button disabled={!canProceed()} className="flex-1 rounded-xl h-14" onClick={handleNext}>
+                Continua <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button 
-                onClick={paymentMethod === 'online' ? handleConfirm : handleConfirmOnSite} 
-                className={paymentMethod === 'online' ? "bg-green-600 hover:bg-green-700 text-white" : "bg-black text-white dark:bg-white dark:text-black"}
-              >
-                {paymentMethod === 'online' ? 'Conferma e Paga' : 'Conferma Prenotazione'}
+              <Button className="flex-1 rounded-xl h-14 bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90" onClick={paymentMethod === 'online' ? handleConfirm : handleConfirmOnSite}>
+                Conferma Prenotazione
               </Button>
             )}
           </div>

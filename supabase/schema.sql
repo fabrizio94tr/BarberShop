@@ -39,6 +39,8 @@ create table public.locations (
   city text not null,
   phone text,
   stripe_account_id text, -- ID dell'account Stripe Connect (es. acct_12345)
+  slug text unique,
+  image_url text,
   is_active boolean default true,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -105,3 +107,18 @@ create policy "Barbers can view location appointments." on appointments for sele
     and barbers.location_id = appointments.location_id
   )
 );
+
+-- 6. Reviews Table
+create table public.reviews (
+  id uuid default uuid_generate_v4() primary key,
+  appointment_id uuid references public.appointments(id) on delete cascade unique,
+  location_id uuid references public.locations(id) on delete cascade not null,
+  customer_id uuid references public.profiles(id) on delete cascade not null,
+  rating integer check (rating >= 1 and rating <= 5) not null,
+  comment text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.reviews enable row level security;
+create policy "Reviews are viewable by everyone." on reviews for select using (true);
+create policy "Customers can insert their own reviews." on reviews for insert with check (auth.uid() = customer_id);

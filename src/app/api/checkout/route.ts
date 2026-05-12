@@ -13,26 +13,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 1. Recupera i dati reali dal DB (Mock per ora)
-    // In produzione faremo: await supabase.from('services').select('*').eq('id', serviceId).single()
-    const mockServices = [
-      { id: '1', name: 'Taglio Classico', price: 25 },
-      { id: '2', name: 'Taglio & Barba', price: 35 },
-      { id: '3', name: 'Regolazione Barba', price: 15 },
-    ];
-    const service = mockServices.find(s => s.id === serviceId);
-
-    // 2. Recupera l'account Stripe della sede
-    // In produzione faremo: await supabase.from('locations').select('stripe_account_id').eq('id', locationId).single()
-    const mockStripeAccounts: Record<string, string> = {
-      '1': 'acct_123...', // Esempio account sede Prati
-      '2': 'acct_456...', // Esempio account sede Trastevere
-    };
-    const destinationAccount = mockStripeAccounts[locationId];
+    // 1. Recupera i dati reali dal DB
+    const { data: service } = await supabase
+      .from('services')
+      .select('*')
+      .eq('id', serviceId)
+      .single();
 
     if (!service) {
-      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Servizio non trovato' }, { status: 404 });
     }
+
+    // 2. Recupera l'account Stripe della sede
+    const { data: location } = await supabase
+      .from('locations')
+      .select('stripe_account_id')
+      .eq('id', locationId)
+      .single();
+
+    const destinationAccount = location?.stripe_account_id;
 
     // 3. Crea la Checkout Session
     const session = await stripe.checkout.sessions.create({
@@ -45,24 +44,34 @@ export async function POST(request: Request) {
               name: service.name,
               description: `Appuntamento il ${appointmentDate} alle ${appointmentTime}`,
             },
-            unit_amount: service.price * 100, // Stripe usa i centesimi
+            unit_amount: Math.round(service.price * 100), // Stripe usa i centesimi
           },
           quantity: 1,
         },
       ],
       mode: 'payment',
       success_url: `${request.headers.get('origin')}/book/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${request.headers.get('origin')}/book/${locationId}`,
+      cancel_url: `${request.headers.get('origin')}/book/${location.slug || locationId}`,
       customer_email: user.email,
       
-      // LOGICA CONNECT: Destina i fondi alla sede specifica (meno una eventuale commissione)
-      /*
-      payment_intent_data: {
-        transfer_data: {
-          destination: destinationAccount,
-        },
+      // Metadata per ritrovare le info nel webhook
+      metadata: {
+        userId: user.id,
+        locationId,
+        serviceId,
+        barberId,
+        appointmentDate,
+        appointmentTime,
       },
-      */
+
+      // LOGICA CONNECT (Attivare quando gli account sono pronti)
+      ...(destinationAccount && {
+        payment_intent_data: {
+          transfer_data: {
+            destination: destinationAccount,
+          },
+        },
+      })
     });
 
     return NextResponse.json({ sessionId: session.id, url: session.url });

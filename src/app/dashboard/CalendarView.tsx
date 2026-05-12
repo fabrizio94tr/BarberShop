@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { Clock, User, ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal'
+import { createClient } from '@/utils/supabase/client'
 
-// Tipo per gli appuntamenti (esteso per supportare walk-in)
+// Tipo per gli appuntamenti
 export type Appointment = {
   id: string
   time: string
@@ -22,9 +23,33 @@ export type Appointment = {
 }
 
 export default function CalendarView({ initialAppointments }: { initialAppointments: Appointment[] }) {
+  const supabase = createClient()
+  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Real-time Subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('realtime_appointments')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointments' },
+        (payload) => {
+          console.log('Change received!', payload)
+          // In una versione reale, qui dovremmo fare un nuovo fetch per avere i dati completi (nomi servizi, ecc.)
+          // O aggiornare lo stato locale se il payload contiene tutto.
+          // Per ora, un semplice avviso o refresh silenzioso dei dati.
+          window.location.reload() // Metodo brutale ma efficace per ora
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase])
 
   // Calendario logic
   const monthStart = startOfMonth(currentDate)
@@ -32,8 +57,8 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd })
 
   // Appuntamenti per il giorno selezionato
-  const selectedDayAppointments = initialAppointments
-    .filter(apt => isSameDay(apt.date, selectedDate))
+  const selectedDayAppointments = appointments
+    .filter(apt => isSameDay(new Date(apt.date), selectedDate))
     .sort((a, b) => a.time.localeCompare(b.time))
 
   const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1))
@@ -78,13 +103,13 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
             
             {/* Griglia Giorni */}
             <div className="grid grid-cols-7">
-              {/* Spazi vuoti per allineare il primo giorno del mese (Lunedì = 1, Domenica = 0/7) */}
+              {/* Spazi vuoti per allineare il primo giorno del mese */}
               {Array.from({ length: (monthStart.getDay() + 6) % 7 }).map((_, i) => (
                 <div key={`empty-${i}`} className="min-h-[100px] border-b border-r border-gray-100 dark:border-gray-800/50 p-2 bg-gray-50/50 dark:bg-[#0a0a0a]" />
               ))}
               
-              {daysInMonth.map((day, i) => {
-                const dayAppointments = initialAppointments.filter(apt => isSameDay(apt.date, day))
+              {daysInMonth.map((day) => {
+                const dayAppointments = appointments.filter(apt => isSameDay(new Date(apt.date), day))
                 const isSelected = isSameDay(day, selectedDate)
                 const isCurrentDay = isToday(day)
 
@@ -98,21 +123,20 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
                   >
                     <div className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full mb-1
                       ${isCurrentDay ? 'bg-black text-white dark:bg-white dark:text-black' : ''}
-                      ${isSelected && !isCurrentDay ? 'ring-2 ring-black dark:ring-white' : ''}
                     `}>
                       {format(day, 'd')}
                     </div>
                     
-                    {/* Indicatori Appuntamenti */}
-                    <div className="flex flex-col gap-1 mt-2">
-                      {dayAppointments.slice(0, 2).map(apt => (
-                        <div key={apt.id} className="text-[10px] truncate bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5">
-                          <span className="font-bold">{apt.time}</span> {apt.customer.split(' ')[0]}
+                    <div className="space-y-1">
+                      {dayAppointments.slice(0, 3).map(apt => (
+                        <div key={apt.id} className="text-[10px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 border-l-2 border-black dark:border-white truncate">
+                          <span className="font-bold mr-1">{apt.time}</span>
+                          {apt.customer}
                         </div>
                       ))}
-                      {dayAppointments.length > 2 && (
-                        <div className="text-[10px] text-gray-500 font-medium pl-1">
-                          +{dayAppointments.length - 2} altri
+                      {dayAppointments.length > 3 && (
+                        <div className="text-[10px] text-gray-400 pl-1">
+                          + {dayAppointments.length - 3} altri
                         </div>
                       )}
                     </div>
@@ -124,69 +148,84 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
         </div>
       </div>
 
-      {/* Colonna Dettagli Giorno */}
-      <div className="lg:w-96 flex flex-col min-h-[500px]">
-        <div className="flex items-center justify-between mb-6 mt-8 lg:mt-0">
+      {/* Colonna Lista Dettaglio */}
+      <div className="w-full lg:w-[400px] flex flex-col h-full">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-xl font-bold">Appuntamenti</h3>
-            <p className="text-sm text-gray-500 capitalize">{format(selectedDate, 'EEEE d MMMM', { locale: it })}</p>
+            <p className="text-sm text-gray-500">{format(selectedDate, 'EEEE d MMMM', { locale: it })}</p>
           </div>
-          <Button size="sm" className="gap-2" onClick={() => setIsModalOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Nuovo
+          <Button onClick={() => setIsModalOpen(true)} className="rounded-full h-12 w-12 p-0">
+            <Plus className="h-6 w-6" />
           </Button>
         </div>
 
-        <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 flex-1 shadow-sm">
-          {selectedDayAppointments.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center text-gray-500 py-20">
-              <CalendarIcon className="h-12 w-12 mb-4 text-gray-300 dark:text-gray-700" />
-              <p>Nessun appuntamento per questa data.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {selectedDayAppointments.map(apt => (
-                <div key={apt.id} className="p-4 border border-gray-100 dark:border-gray-800 rounded-xl hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold tabular-nums">{apt.time}</span>
-                      <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {apt.duration}
-                      </span>
+        <div className="flex-1 space-y-4 overflow-y-auto pr-2 min-h-[400px]">
+          {selectedDayAppointments.length > 0 ? (
+            selectedDayAppointments.map(apt => (
+              <div key={apt.id} className="p-5 bg-white dark:bg-[#111] border border-gray-100 dark:border-gray-800 rounded-3xl shadow-sm hover:shadow-md transition-all group">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded-xl group-hover:bg-black group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black transition-colors">
+                      <Clock className="h-5 w-5" />
                     </div>
-                    {apt.status === 'confirmed' && <span className="w-2 h-2 rounded-full bg-green-500" title="Confermato" />}
-                    {apt.status === 'pending' && <span className="w-2 h-2 rounded-full bg-yellow-500" title="In attesa" />}
-                    {apt.status === 'completed' && <span className="w-2 h-2 rounded-full bg-gray-500" title="Completato" />}
+                    <div>
+                      <div className="text-lg font-bold">{apt.time}</div>
+                      <div className="text-xs text-gray-500 uppercase font-bold tracking-wider">{apt.duration}</div>
+                    </div>
+                  </div>
+                  <div className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full border
+                    ${apt.status === 'confirmed' ? 'bg-green-50 text-green-600 border-green-100 dark:bg-green-900/20 dark:border-green-800' : 
+                      apt.status === 'completed' ? 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:border-blue-800' :
+                      'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/20 dark:border-orange-800'}
+                  `}>
+                    {apt.status}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-bold text-sm">
+                      {apt.customer[0]}
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm">{apt.customer}</div>
+                      <div className="text-xs text-gray-500">{apt.service}</div>
+                    </div>
                   </div>
                   
-                  <h4 className="font-bold text-md mb-1">{apt.service}</h4>
-                  
-                  <div className="flex flex-col gap-1 text-sm text-gray-600 dark:text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4" />
-                      <span>{apt.customer} {apt.isWalkIn && <span className="text-[10px] ml-1 bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5 rounded uppercase">Walk-in</span>}</span>
-                    </div>
+                  <div className="space-y-1">
                     {apt.phone && (
-                      <div className="ml-6 text-xs">{apt.phone}</div>
+                      <div className="ml-11 text-xs text-gray-400">{apt.phone}</div>
                     )}
                     {apt.notes && (
-                      <div className="ml-6 mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border-l-2 border-yellow-400 text-xs italic text-gray-700 dark:text-gray-300 rounded">
+                      <div className="ml-11 mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border-l-2 border-yellow-400 text-xs italic text-gray-700 dark:text-gray-300 rounded">
                         "{apt.notes}"
                       </div>
                     )}
                   </div>
-
-                  {/* Azioni Appuntamento */}
-                  <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-50 dark:border-gray-800/50">
-                    <Button variant="ghost" size="sm" className="h-8 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black dark:hover:text-white" onClick={() => setIsModalOpen(true)}>
-                      Modifica
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 text-xs font-bold uppercase tracking-wider text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => confirm("Sei sicuro di voler eliminare questo appuntamento?")}>
-                      Elimina
-                    </Button>
-                  </div>
                 </div>
-              ))}
+
+                <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-50 dark:border-gray-800/50">
+                  <Button variant="ghost" size="sm" className="h-8 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black dark:hover:text-white">
+                    Modifica
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs font-bold uppercase tracking-wider text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                    Elimina
+                  </Button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center p-8 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-[2.5rem]">
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-full mb-4">
+                <CalendarIcon className="h-8 w-8 text-gray-300" />
+              </div>
+              <h4 className="font-bold">Nessun appuntamento</h4>
+              <p className="text-sm text-gray-400 max-w-[200px] mt-1">Non ci sono prenotazioni per questo giorno.</p>
+              <Button onClick={() => setIsModalOpen(true)} variant="outline" size="sm" className="mt-6 rounded-xl">
+                Aggiungi ora
+              </Button>
             </div>
           )}
         </div>
@@ -195,7 +234,7 @@ export default function CalendarView({ initialAppointments }: { initialAppointme
       <NewAppointmentModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        selectedDate={selectedDate} 
+        selectedDate={selectedDate}
       />
     </div>
   )
