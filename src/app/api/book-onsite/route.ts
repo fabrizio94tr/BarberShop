@@ -32,13 +32,30 @@ export async function POST(request: Request) {
     const startTime = parseISO(startString);
     const endTime = addMinutes(startTime, service.duration_minutes);
 
+    // Gestione "Chiunque" (Anyone): se non viene selezionato un barbiere specifico,
+    // ne assegniamo uno attivo per la sede selezionata.
+    let actualBarberId = barberId;
+    if (barberId === 'any') {
+      const { data: locationBarbers, error: bError } = await supabase
+        .from('barbers')
+        .select('id')
+        .eq('location_id', locationId)
+        .eq('is_active', true)
+        .limit(1);
+
+      if (bError || !locationBarbers || locationBarbers.length === 0) {
+        return NextResponse.json({ error: 'Nessun barbiere disponibile per questa sede' }, { status: 400 });
+      }
+      actualBarberId = locationBarbers[0].id;
+    }
+
     // 3. Salva l'appuntamento nel database
     const { data: appointment, error: aError } = await supabase
       .from('appointments')
       .insert({
         customer_id: user.id,
         location_id: locationId,
-        barber_id: barberId === 'any' ? null : barberId, // Gestione "Chiunque"
+        barber_id: actualBarberId,
         service_id: serviceId,
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),

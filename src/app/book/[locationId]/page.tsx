@@ -27,7 +27,25 @@ export default async function BookLocationPage({
     redirect('/login')
   }
 
-  const locationName = DUMMY_LOCATIONS[locationId] || 'Sede Sconosciuta'
+  // Recupera il nome reale della sede dal database
+  let locationName = 'Sede Sconosciuta'
+  try {
+    const { data: locationData } = await supabase
+      .from('locations')
+      .select('name')
+      .eq('id', locationId)
+      .single()
+
+    if (locationData) {
+      locationName = locationData.name
+    } else if (DUMMY_LOCATIONS[locationId]) {
+      locationName = DUMMY_LOCATIONS[locationId]
+    }
+  } catch (err) {
+    if (DUMMY_LOCATIONS[locationId]) {
+      locationName = DUMMY_LOCATIONS[locationId]
+    }
+  }
 
   return (
     <main className="min-h-screen bg-white dark:bg-[#0a0a0a] py-12 px-4 sm:px-6">
