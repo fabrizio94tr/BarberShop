@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
-import { MapPin, Clock, Scissors, User, ArrowRight, ChevronLeft, Star, Phone, Camera, MessageSquare } from 'lucide-react'
+import { MapPin, Clock, Scissors, User, ArrowRight, Star, Phone, Camera, MessageSquare } from 'lucide-react'
 import ReviewList from '@/components/location/ReviewList'
 import ImageGallery from '@/components/location/ImageGallery'
 
@@ -116,11 +116,7 @@ export default async function LocationPage({
         />
         <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
         
-        <div className="relative z-10 h-full max-w-7xl mx-auto px-6 flex flex-col justify-between py-12">
-          <Link href="/" className="inline-flex items-center text-white/80 hover:text-white transition-colors group">
-            <ChevronLeft className="w-5 h-5 mr-1 group-hover:-translate-x-1 transition-transform" />
-            Torna alle sedi
-          </Link>
+        <div className="relative z-10 h-full max-w-7xl mx-auto px-6 flex flex-col justify-end py-12">
           
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-white/80">
