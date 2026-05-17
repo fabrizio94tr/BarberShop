@@ -158,7 +158,7 @@ export default async function LocationPage({
                     </div>
                     <div className="text-right">
                       <span className="text-2xl font-bold block mb-2">€{service.price}</span>
-                      <Link href={user ? `/book/${location.id}` : '/login'}>
+                      <Link href={user ? `/book/${location.id}` : `/login?next=/book/${location.id}`}>
                         <Button size="sm" variant="outline" className="rounded-full group-hover:bg-black group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black transition-colors">
                           Scegli
                         </Button>
@@ -221,7 +221,7 @@ export default async function LocationPage({
               <div className="bg-black text-white dark:bg-white dark:text-black p-8 rounded-[2.5rem] shadow-2xl">
                 <h3 className="text-2xl font-bold mb-4">Pronto al cambio look?</h3>
                 <p className="text-white/70 dark:text-black/70 mb-8 font-light">Prenota ora il tuo appuntamento in pochi secondi.</p>
-                <Link href={user ? `/book/${location.id}` : '/login'}>
+                <Link href={user ? `/book/${location.id}` : `/login?next=/book/${location.id}`}>
                   <Button className="w-full h-16 rounded-2xl bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-all font-bold text-lg flex justify-between px-8 shadow-xl shadow-black/10">
                     <span className="flex-1 text-left">Prenota Ora</span>
                     <ArrowRight className="w-6 h-6" />

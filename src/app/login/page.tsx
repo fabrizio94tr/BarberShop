@@ -9,9 +9,9 @@ import { Scissors, ArrowRight } from 'lucide-react'
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ message: string }>
+  searchParams: Promise<{ message: string; next?: string }>
 }) {
-  const { message } = use(searchParams)
+  const { message, next } = use(searchParams)
   const [isLogin, setIsLogin] = useState(true)
 
   return (
@@ -32,6 +32,7 @@ export default function LoginPage({
         </div>
 
         <form className="space-y-4">
+          <input type="hidden" name="next" value={next || ''} />
           {!isLogin && (
             <>
               <div className="space-y-2">

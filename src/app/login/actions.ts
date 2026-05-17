@@ -14,12 +14,15 @@ export async function login(formData: FormData) {
 
   const { error } = await supabase.auth.signInWithPassword(data)
 
+  const next = formData.get('next') as string
+
   if (error) {
-    redirect('/login?message=Could not authenticate user')
+    const errorUrl = `/login?message=Could not authenticate user${next ? `&next=${encodeURIComponent(next)}` : ''}`
+    redirect(errorUrl)
   }
 
   revalidatePath('/', 'layout')
-  redirect('/')
+  redirect(next || '/')
 }
 
 export async function signup(formData: FormData) {
@@ -38,12 +41,15 @@ export async function signup(formData: FormData) {
 
   const { error } = await supabase.auth.signUp(data)
 
+  const next = formData.get('next') as string
+
   if (error) {
-    redirect('/login?message=Could not authenticate user')
+    const errorUrl = `/login?message=Could not authenticate user${next ? `&next=${encodeURIComponent(next)}` : ''}`
+    redirect(errorUrl)
   }
 
   revalidatePath('/', 'layout')
-  redirect('/login?message=Check email to continue sign in process')
+  redirect(`/login?message=Check email to continue sign in process${next ? `&next=${encodeURIComponent(next)}` : ''}`)
 }
 
 export async function logout() {
