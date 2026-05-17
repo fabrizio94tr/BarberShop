@@ -123,11 +123,14 @@ export default function BookingFlow({ locationId }: { locationId: string }) {
         }),
       });
 
-      if (!response.ok) throw new Error("Errore nel salvataggio");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Errore nel salvataggio");
+      }
       router.push('/book/success')
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Errore nel salvataggio.");
+      alert(err.message || "Errore nel salvataggio.");
       setStep(4);
     }
   }
